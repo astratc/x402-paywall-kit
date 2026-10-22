@@ -1,0 +1,16 @@
+name = "x402-paywall"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+PAY_TO = "0xYourReceivingWalletAddress000000000000"   # REQUIRED: your Base address (receive only)
+NETWORK = "base"                                       # or "base-sepolia" for testing
+FACILITATOR_URL = "https://facilitator.payai.network"  # free, no account, supports Base mainnet
+UPSTREAM_URL = "https://api.example.com"               # the API you are putting behind the paywall
+SERVICE_NAME = "My x402 API"
+SERVICE_DESCRIPTION = "Pay-per-call API, USDC on Base via x402."
+CONTACT = ""
+FREE_PASSTHROUGH = "false"
+# Paid routes: path -> { price, description, method?, mimeType?, inputSchema?, outputSchema? }
+ROUTES = '{"/v1/data": {"price": "$0.01", "description": "Example paid route"}}'
+# Secret upstream key (never commit): npx wrangler secret put UPSTREAM_AUTH_VALUE ; set UPSTREAM_AUTH_HEADER="authorization" or "x-api-key" here

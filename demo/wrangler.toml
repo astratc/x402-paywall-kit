@@ -1,0 +1,8 @@
+name = "x402-paywall-demo"
+main = "../example/worker.js"
+compatibility_date = "2026-10-01"
+[vars]
+PAY_TO = "0x1A7Dc2677391D49FB3001AD5a1aa89A573c9b865"
+NETWORK = "base"
+FACILITATOR_URL = "https://facilitator.payai.network"
+CONTACT = "carl.astratc@proton.me"

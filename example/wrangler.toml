@@ -1,0 +1,7 @@
+name = "x402-fortune-example"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+[vars]
+PAY_TO = "0xYourReceivingWalletAddress000000000000"
+NETWORK = "base-sepolia"
+FACILITATOR_URL = "https://x402.org/facilitator"

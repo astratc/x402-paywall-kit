@@ -1,0 +1,4 @@
+{ "name": "x402-paywall-kit", "version": "1.0.0", "type": "module", "license": "MIT",
+  "description": "Put any API behind x402 (USDC on Base) on Cloudflare Workers. Zero runtime dependencies.",
+  "scripts": { "test": "node --test test/", "dev": "wrangler dev", "deploy": "wrangler deploy", "example": "wrangler deploy -c example/wrangler.toml" },
+  "devDependencies": { "wrangler": "^3.90.0" } }
