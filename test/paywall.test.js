@@ -9,14 +9,15 @@ const ok = { verify: async () => ({ isValid: true, payer: "0xabc" }), settle: as
 
 test("price converts to atomic USDC", () => { assert.equal(toAtomic("$0.05"), "50000"); assert.equal(toAtomic("5"), "5000000"); assert.throws(() => toAtomic("abc")); });
 test("requirements use the right USDC asset per network", () => {
-  assert.equal(requirements({ price: "$1", payTo: PAY_TO, network: "base", resource: "x" }).asset, USDC.base.address);
-  assert.equal(requirements({ price: "$1", payTo: PAY_TO, network: "base-sepolia", resource: "x" }).asset, USDC["base-sepolia"].address);
+  assert.equal(requirements({ price: "$1", payTo: PAY_TO, network: "base", resource: "x" }).v2.asset, USDC.base.address);
+  assert.equal(requirements({ price: "$1", payTo: PAY_TO, network: "base-sepolia", resource: "x" }).v2.asset, USDC["base-sepolia"].address);
 });
 test("GET /health is free", async () => { const r = await mk(ok).app.fetch(new Request("https://t/health")); assert.equal(r.status, 200); });
-test("unpaid request gets 402 with x402 v1 requirements and PAYMENT-REQUIRED header", async () => {
+test("unpaid request gets 402 with x402 v2 requirements and PAYMENT-REQUIRED header", async () => {
   const { app, calls } = mk(ok); const r = await app.fetch(new Request("https://t/paid")); const b = await r.json();
-  assert.equal(r.status, 402); assert.equal(b.x402Version, 1); assert.equal(b.accepts[0].scheme, "exact");
-  assert.equal(b.accepts[0].maxAmountRequired, "50000"); assert.equal(b.accepts[0].payTo, PAY_TO); assert.ok(r.headers.get("payment-required")); assert.equal(calls.handler, 0);
+  assert.equal(r.status, 402); assert.equal(b.x402Version, 2); assert.equal(b.accepts[0].scheme, "exact"); assert.equal(b.accepts[0].network, "eip155:8453");
+  assert.deepEqual(JSON.parse(atob(r.headers.get("payment-required"))), b); assert.equal(b.resource.url, "https://t/paid"); assert.ok(b.extensions.bazaar);
+  assert.equal(b.accepts[0].amount, "50000"); assert.equal(b.accepts[0].payTo, PAY_TO); assert.ok(r.headers.get("payment-required")); assert.equal(calls.handler, 0);
 });
 test("valid payment: verifies, runs handler, settles, returns 200 + X-PAYMENT-RESPONSE", async () => {
   const { app, calls } = mk(ok); const r = await app.fetch(new Request("https://t/paid", { headers: { "x-payment": payment() } }));
@@ -44,3 +45,17 @@ test("handler error is not settled", async () => {
   let s = 0; const app = createApp({ PAY_TO, facilitator: { ...ok, settle: async () => { s++; return { success: true }; } }, ROUTES: { "/paid": { price: "$1" } }, handlers: { "/paid": () => new Response("boom", { status: 500 }) } });
   const r = await app.fetch(new Request("https://t/paid", { headers: { "x-payment": payment() } })); assert.equal(r.status, 500); assert.equal(s, 0);
 });
+test("v2 payment: PAYMENT-SIGNATURE verified with v2 body, returns PAYMENT-RESPONSE", async () => {
+  let seen; const fac = { verify: async (p, r, v) => { seen = { r, v }; return { isValid: true, payer: "0xabc" }; }, settle: async () => ({ success: true, transaction: "0xtx2" }) };
+  const { app, calls } = mk(fac); const chal = await (await app.fetch(new Request("https://t/paid"))).json();
+  const sig = btoa(JSON.stringify({ x402Version: 2, resource: chal.resource, accepted: chal.accepts[0], payload: { signature: "0xstub", authorization: {} } }));
+  const r = await app.fetch(new Request("https://t/paid", { headers: { "payment-signature": sig } }));
+  assert.equal(r.status, 200); assert.equal(calls.handler, 1); assert.equal(seen.v, 2); assert.equal(seen.r.amount, "50000");
+  assert.equal(JSON.parse(atob(r.headers.get("payment-response"))).transaction, "0xtx2");
+});
+test("v2 payment with tampered amount is rejected before facilitator", async () => {
+  let v = 0; const { app } = mk({ ...ok, verify: async () => { v++; return { isValid: true }; } }); const chal = await (await app.fetch(new Request("https://t/paid"))).json();
+  const sig = btoa(JSON.stringify({ x402Version: 2, accepted: { ...chal.accepts[0], amount: "1" }, payload: {} }));
+  const r = await app.fetch(new Request("https://t/paid", { headers: { "payment-signature": sig } })); assert.equal(r.status, 402); assert.equal(v, 0);
+});
+test("favicon served", async () => { const r = await mk(ok).app.fetch(new Request("https://t/favicon.ico")); assert.equal(r.status, 200); assert.equal(r.headers.get("content-type"), "image/x-icon"); });
